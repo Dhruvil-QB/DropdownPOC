@@ -2,13 +2,20 @@ import React, { useEffect, useRef, useState } from "react";
 
 type ValueType = string | number;
 
-interface DropdownProps<T extends Record<string, any>> {
-  options?: T[];
+interface DropDownOptions {
+  id: string | number;
+  value?: string;
+  title?: string;
+  label?: string;
+  [key: string]: unknown;
+}
+interface DropdownProps {
+  options?: DropDownOptions[];
   apiUrl?: string;
   apiSearch?: boolean;
-  labelKey: keyof T;
-  valueKey: keyof T;
-  searchKeys?: (keyof T)[];
+  labelKey: string;
+  valueKey: string;
+  searchKeys?: string[];
   placeholder?: string;
   multiple?: boolean;
   selectedValues: ValueType[];
@@ -19,30 +26,30 @@ interface DropdownProps<T extends Record<string, any>> {
 const authToken =
   "eyJhbGciOiJIUzI1NiIsImtleV9hY2Nlc3MiOiJzdWJzY3JpcHRpb25fYWNjZXNzIiwidHlwIjoiSldUIn0.eyJ1c2VybmFtZSI6InNtaXQudkB5b3BtYWlsLmNvbSIsImV4cCI6MTc2ODQ3NzA2NCwiaWF0IjoxNzY3NjEzMDY0LjU2NjMyLCJpZCI6IjdmNDM4NzY1LTNjN2ItNDhmZC04MzA3LWU0Y2EyYWIwYWU3NSIsImVtYWlsIjoic21pdC52QHlvcG1haWwuY29tIiwic3Vic2NyaXB0aW9uX2lkIjoiY2I3YjZhMzAtMzRiNC00MjVlLWI4ZTgtMWQwNDViY2Y2MjUyIn0.yaTMyh9T6N4xgzNDLEG9TSrP78PPu7Pyrt0bCX25fvY";
 
-function Dropdown<T extends Record<string, any>>({
+function Dropdown({
   options = [],
   apiUrl,
   apiSearch = false,
   labelKey,
   valueKey,
-  searchKeys,
+  searchKeys = [],
   placeholder = "Select...",
   multiple = false,
   selectedValues,
   pageSize = 100,
   onChange,
-}: DropdownProps<T>) {
+}: DropdownProps) {
   const isStatic = options.length > 0 && !apiUrl;
 
-  const [items, setItems] = useState(options);
-  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<any[]>(options);
+  const [open, setOpen] = useState<boolean>(false);
 
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [search, setSearch] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
 
-  const [page, setPage] = useState(1);
-  const [hasNext, setHasNext] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
+  const [page, setPage] = useState<number>(1);
+  const [hasNext, setHasNext] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const PAGE_SIZE = pageSize;
 
@@ -90,7 +97,7 @@ function Dropdown<T extends Record<string, any>>({
     )
       .then((res) => res.json())
       .then((data) => {
-        let list: T[] = [];
+        let list = [];
 
         if (Array.isArray(data)) list = data;
         else if (Array.isArray(data?.data)) list = data.data;
@@ -179,7 +186,7 @@ function Dropdown<T extends Record<string, any>>({
                   cursor: "pointer",
                 }}
               >
-                {item?.[labelKey]}
+                {String(item?.[labelKey])}
                 <span
                   onClick={(e) => {
                     e.stopPropagation();
@@ -194,7 +201,9 @@ function Dropdown<T extends Record<string, any>>({
 
         {!multiple && selectedValues.length === 1 && search === "" && (
           <span>
-            {items.find((i) => i[valueKey] === selectedValues[0])?.[labelKey]}
+            {String(
+              items.find((i) => i[valueKey] === selectedValues[0])?.[labelKey]
+            )}
           </span>
         )}
 
@@ -238,11 +247,13 @@ function Dropdown<T extends Record<string, any>>({
           }}
         >
           {displayItems
-            .filter((item) => !selectedValues.includes(item[valueKey]))
+            .filter(
+              (item) => !selectedValues.includes(item[valueKey] as string)
+            )
             .map((item) => (
               <div
                 key={String(item[valueKey])}
-                onClick={() => selectItem(item[valueKey])}
+                onClick={() => selectItem(item[valueKey] as string)}
                 style={{ padding: 10, cursor: "pointer" }}
               >
                 {String(item[labelKey])}
