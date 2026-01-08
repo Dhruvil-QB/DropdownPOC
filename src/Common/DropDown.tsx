@@ -34,7 +34,7 @@ function Dropdown<T extends Record<string, any>>({
 }: DropdownProps<T>) {
   const isStatic = options.length > 0 && !apiUrl;
 
-  const [items, setItems] = useState<T[]>(options);
+  const [items, setItems] = useState(options);
   const [open, setOpen] = useState(false);
 
   const [search, setSearch] = useState("");
@@ -48,27 +48,33 @@ function Dropdown<T extends Record<string, any>>({
 
   const ref = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
 
+  // Update items if static options change
   useEffect(() => {
     if (isStatic) setItems(options);
   }, [isStatic, options]);
 
+  // Debounce search input
   useEffect(() => {
-    if (!apiSearch) return;
-    const t = setTimeout(() => setDebouncedSearch(search), 400);
-    return () => clearTimeout(t);
-  }, [search, apiSearch]);
+    // Clear previous timer and start new one every time `search` changes
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 400); // 400ms debounce delay
 
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset page and hasNext when search changes
   useEffect(() => {
     if (!apiSearch) return;
-    setItems([]);
     setPage(1);
     setHasNext(true);
+    setItems([]);
   }, [debouncedSearch, apiSearch]);
 
+  // Fetch API data
   useEffect(() => {
-    if (!apiSearch || !apiUrl || !hasNext || isLoading) return;
+    if (!apiSearch || !apiUrl || !open || isLoading) return;
 
     setIsLoading(true);
 
@@ -85,6 +91,7 @@ function Dropdown<T extends Record<string, any>>({
       .then((res) => res.json())
       .then((data) => {
         let list: T[] = [];
+
         if (Array.isArray(data)) list = data;
         else if (Array.isArray(data?.data)) list = data.data;
         else if (Array.isArray(data?.results)) list = data.results;
@@ -94,30 +101,9 @@ function Dropdown<T extends Record<string, any>>({
       })
       .catch(() => setHasNext(false))
       .finally(() => setIsLoading(false));
-  }, [apiUrl, page, debouncedSearch, apiSearch]);
+  }, [page, debouncedSearch, apiSearch, apiUrl, open]);
 
-  /* ---------- INTERSECTION OBSERVER ---------- */
-  useEffect(() => {
-    if (!apiSearch || !open || !hasNext || isLoading) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !isLoading) {
-          observer.unobserve(entry.target);
-          setPage((p) => p + 1);
-        }
-      },
-      { root: dropdownRef.current, threshold: 0.1 }
-    );
-
-    const el = loadMoreRef.current;
-    if (el) observer.observe(el);
-
-    return () => {
-      if (el) observer.unobserve(el);
-    };
-  }, [open, hasNext, isLoading, apiSearch]);
-
+  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -128,6 +114,17 @@ function Dropdown<T extends Record<string, any>>({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (
+      el.scrollTop + el.clientHeight >= el.scrollHeight - 20 &&
+      hasNext &&
+      !isLoading
+    ) {
+      setPage((p) => p + 1);
+    }
+  };
+
   const selectItem = (value: ValueType) => {
     if (multiple) onChange([...selectedValues, value]);
     else {
@@ -137,20 +134,21 @@ function Dropdown<T extends Record<string, any>>({
     setSearch("");
   };
 
+  const removeChip = (value: ValueType) => {
+    onChange(selectedValues.filter((v) => v !== value));
+  };
+
   const displayItems = apiSearch
     ? items
     : items.filter((item) => {
         const keys = Array.from(new Set([labelKey, ...(searchKeys ?? [])]));
-
         return keys.some((key) =>
           String(item[key] ?? "")
             .toLowerCase()
             .includes(search.toLowerCase())
         );
       });
-  const removeChip = (value: ValueType) => {
-    onChange(selectedValues.filter((v) => v !== value));
-  };
+
   return (
     <div ref={ref} style={{ width: 320, position: "relative" }}>
       <div
@@ -188,7 +186,7 @@ function Dropdown<T extends Record<string, any>>({
                     removeChip(val);
                   }}
                 >
-                  {""} ✖
+                  ✖
                 </span>
               </span>
             );
@@ -205,7 +203,9 @@ function Dropdown<T extends Record<string, any>>({
           onChange={(e) => setSearch(e.target.value)}
           placeholder={selectedValues.length ? "" : placeholder}
           style={{ border: "none", outline: "none", flex: 1 }}
+          onClick={() => setOpen(true)}
         />
+
         {selectedValues.length > 0 && (
           <span
             onClick={(e) => {
@@ -229,6 +229,7 @@ function Dropdown<T extends Record<string, any>>({
       {open && (
         <div
           ref={dropdownRef}
+          onScroll={handleScroll}
           style={{
             marginTop: 4,
             maxHeight: 220,
@@ -237,33 +238,25 @@ function Dropdown<T extends Record<string, any>>({
           }}
         >
           {displayItems
-            .filter((item) => {
-              const value = item[valueKey] as ValueType;
-              return !selectedValues.includes(value);
-            })
-            .map((item) => {
-              const value = item[valueKey] as ValueType;
-              return (
-                <div
-                  key={String(value)}
-                  onClick={() => selectItem(value)}
-                  style={{ padding: 10, cursor: "pointer" }}
-                >
-                  {String(item[labelKey])}
-                </div>
-              );
-            })}
+            .filter((item) => !selectedValues.includes(item[valueKey]))
+            .map((item) => (
+              <div
+                key={String(item[valueKey])}
+                onClick={() => selectItem(item[valueKey])}
+                style={{ padding: 10, cursor: "pointer" }}
+              >
+                {String(item[labelKey])}
+              </div>
+            ))}
 
-          {apiSearch && <div ref={loadMoreRef} style={{ height: 1 }} />}
-
-          {/* LOADING */}
+          {/* Loading */}
           {apiSearch && isLoading && (
             <div style={{ padding: 10, textAlign: "center", color: "#666" }}>
               Loading...
             </div>
           )}
 
-          {/* NO DATA */}
+          {/* No data */}
           {!isLoading && displayItems.length === 0 && (
             <div style={{ padding: 10, textAlign: "center", color: "#666" }}>
               No data found
