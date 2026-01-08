@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 
 type ValueType = string | number;
 
-interface DropdownProps<T> {
+interface DropdownProps<T extends Record<string, any>> {
   options?: T[];
   apiUrl?: string;
   apiSearch?: boolean;
@@ -13,6 +13,7 @@ interface DropdownProps<T> {
   multiple?: boolean;
   selectedValues: ValueType[];
   onChange: (values: ValueType[]) => void;
+  pageSize?: number;
 }
 
 const authToken =
@@ -28,6 +29,7 @@ function Dropdown<T extends Record<string, any>>({
   placeholder = "Select...",
   multiple = false,
   selectedValues,
+  pageSize = 100,
   onChange,
 }: DropdownProps<T>) {
   const isStatic = options.length > 0 && !apiUrl;
@@ -42,7 +44,7 @@ function Dropdown<T extends Record<string, any>>({
   const [hasNext, setHasNext] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
-  const PAGE_SIZE = 100;
+  const PAGE_SIZE = pageSize;
 
   const ref = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -88,7 +90,7 @@ function Dropdown<T extends Record<string, any>>({
         else if (Array.isArray(data?.results)) list = data.results;
 
         setItems((prev) => (page === 1 ? list : [...prev, ...list]));
-        setHasNext(list.length > 0);
+        setHasNext(list.length === PAGE_SIZE);
       })
       .catch(() => setHasNext(false))
       .finally(() => setIsLoading(false));
@@ -146,7 +148,9 @@ function Dropdown<T extends Record<string, any>>({
             .includes(search.toLowerCase())
         );
       });
-
+  const removeChip = (value: ValueType) => {
+    onChange(selectedValues.filter((v) => v !== value));
+  };
   return (
     <div ref={ref} style={{ width: 320, position: "relative" }}>
       <div
@@ -174,9 +178,18 @@ function Dropdown<T extends Record<string, any>>({
                   background: "#e5e7eb",
                   padding: "4px 8px",
                   borderRadius: 12,
+                  cursor: "pointer",
                 }}
               >
-                {item?.[labelKey]} ✖
+                {item?.[labelKey]}
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeChip(val);
+                  }}
+                >
+                  {""} ✖
+                </span>
               </span>
             );
           })}
@@ -223,18 +236,24 @@ function Dropdown<T extends Record<string, any>>({
             border: "1px solid #ddd",
           }}
         >
-          {displayItems.map((item) => {
-            const value = item[valueKey] as ValueType;
-            return (
-              <div
-                key={String(value)}
-                onClick={() => selectItem(value)}
-                style={{ padding: 10 }}
-              >
-                {String(item[labelKey])}
-              </div>
-            );
-          })}
+          {displayItems
+            .filter((item) => {
+              const value = item[valueKey] as ValueType;
+              return !selectedValues.includes(value);
+            })
+            .map((item) => {
+              const value = item[valueKey] as ValueType;
+              return (
+                <div
+                  key={String(value)}
+                  onClick={() => selectItem(value)}
+                  style={{ padding: 10, cursor: "pointer" }}
+                >
+                  {String(item[labelKey])}
+                </div>
+              );
+            })}
+
           {apiSearch && <div ref={loadMoreRef} style={{ height: 1 }} />}
 
           {/* LOADING */}
