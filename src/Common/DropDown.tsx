@@ -36,7 +36,7 @@ function Dropdown({
   placeholder = "Select...",
   multiple = false,
   selectedValues,
-  pageSize = 100,
+  pageSize = 10,
   onChange,
 }: DropdownProps) {
   const isStatic = options.length > 0 && !apiUrl;
