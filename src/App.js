@@ -1,55 +1,44 @@
 import { useState } from "react";
 import "./App.css";
-import Dropdown from "./Common/DropDown.tsx";
+import CommonDropdown from "./Common/CommonDropDown.tsx";
 
 const roles = [
-  { id: 1, value: "Admin", title: "testxxx" },
-  { id: 2, value: "Doctor", title: "testeee" },
-  { id: 3, value: "Patient", title: "testccccc" },
+  { id: 1, name: "Admin" },
+  { id: 2, name: "Doctor" },
+  { id: 3, name: "Receptionist" },
 ];
 function App() {
-  const [selected, setSelected] = useState([]);
-  const [selectedTodos, setSelectedTodos] = useState([]);
-  const [selectedTodoss, setSelectedTodoss] = useState([]);
+  const [role, setRole] = useState();
+  const [patient, setPatient] = useState();
 
   return (
-    <div className="App">
-      <Dropdown
-        options={roles}
-        labelKey="value"
-        searchKeys={["title"]}
-        valueKey="id"
-        placeholder="Select roles"
-        selectedValues={selected}
-        onChange={(values) => {
-          console.log("🚀 ~ App ~ values:", values);
-          return setSelected(values);
-        }}
-      />
-      <Dropdown
-        apiUrl="https://jsonplaceholder.typicode.com/todos"
-        labelKey="title"
-        valueKey="id"
-        selectedValues={selectedTodoss}
-        apiSearch
-        onChange={(values) => {
-          console.log("Selected Todo IDs:", values);
-          setSelectedTodoss(values);
-        }}
-      />
-      <Dropdown
-        // apiUrl="https://api.salesbot.cloud/core/persona/"
-        apiUrl="https://api.salesbot.cloud/onboard/city/fetch_all/"
-        labelKey="label"
-        valueKey="value"
-        selectedValues={selectedTodos}
-        apiSearch
-        multiple={true}
-        onChange={(values) => {
-          console.log("Selected Todo IDs:", values);
-          setSelectedTodos(values);
-        }}
-      />
+    <div className="form-card">
+      <div className="form-field">
+        <CommonDropdown
+          label="Select Role"
+          options={roles}
+          value={role}
+          onChange={setRole}
+          labelKey="name"
+          valueKey="id"
+          placeholder="Choose role"
+        />
+      </div>
+
+      <div className="form-field">
+        <CommonDropdown
+          label="Select Patient"
+          apiUrl="https://api.salesbot.cloud/onboard/city/fetch_all/"
+          value={patient}
+          apiSearch
+          onChange={setPatient}
+          pageSize={100}
+          labelKey="label"
+          placeholder="Choose role"
+          multiple
+          valueKey="value"
+        />
+      </div>
     </div>
   );
 }
